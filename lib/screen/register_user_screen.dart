@@ -3,10 +3,11 @@ import 'package:flutter_application_1/services/auth_service.dart';
 import 'package:flutter_application_1/widgets/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_application_1/providers/providers.dart';
-import '../ui/input_decorations.dart';
+
 
 class RegisterUserScreen extends StatelessWidget {
-  const RegisterUserScreen({super.key});
+  const RegisterUserScreen({Key? key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -14,32 +15,48 @@ class RegisterUserScreen extends StatelessWidget {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              const SizedBox(
-                height: 150,
-              ),
+              const SizedBox(height: 150),
               CardContainer(
-                  child: Column(children: [
-                const SizedBox(height: 10),
-                Text(
-                  'Registra una cuenta',
-                  style: Theme.of(context).textTheme.headline5,
+                child: Column(
+                  children: [
+                    const SizedBox(height: 20),
+                    Text(
+                      'Registra una cuenta',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepPurple, // Cambia el color del texto
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                    ChangeNotifierProvider(
+                      create: (_) => LoginFormProvider(),
+                      child: RegisterForm(),
+                    ),
+                    const SizedBox(height: 50),
+                    TextButton(
+                      onPressed: () =>
+                          Navigator.pushReplacementNamed(context, 'login'),
+                      style: ButtonStyle(
+                        overlayColor: MaterialStateProperty.all(
+                          Colors.indigo.withOpacity(0.1),
+                        ),
+                        shape: MaterialStateProperty.all(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      child: const Text(
+                        '¿Ya tienes una cuenta? Autentifícate',
+                        style: TextStyle(
+                          color: Colors.deepPurple, // Cambia el color del texto
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 30),
-                ChangeNotifierProvider(
-                  create: (_) => LoginFormProvider(),
-                  child: RegisterForm(),
-                ),
-                const SizedBox(height: 50),
-                TextButton(
-                  onPressed: () =>
-                      Navigator.pushReplacementNamed(context, 'login'),
-                  style: ButtonStyle(
-                      overlayColor: MaterialStateProperty.all(
-                          Colors.indigo.withOpacity(0.1)),
-                      shape: MaterialStateProperty.all(StadiumBorder())),
-                  child: const Text('¿Ya tienes una cuenta?, autentificate'),
-                )
-              ])),
+              ),
             ],
           ),
         ),
@@ -49,81 +66,87 @@ class RegisterUserScreen extends StatelessWidget {
 }
 
 class RegisterForm extends StatelessWidget {
-  const RegisterForm({super.key});
+  const RegisterForm({Key? key});
 
   @override
   Widget build(BuildContext context) {
-    final LoginForm = Provider.of<LoginFormProvider>(context);
+    final loginForm = Provider.of<LoginFormProvider>(context);
     return Container(
       child: Form(
-        key: LoginForm.formKey,
+        key: loginForm.formKey,
         autovalidateMode: AutovalidateMode.onUserInteraction,
-        child: Column(children: [
-          TextFormField(
-            autocorrect: false,
-            keyboardType: TextInputType.text,
-            decoration: InputDecortions.authInputDecoration(
-              hinText: 'Ingrese su correo',
-              labelText: 'Email',
-              prefixIcon: Icons.people,
+        child: Column(
+          children: [
+            TextFormField(
+              autocorrect: false,
+              keyboardType: TextInputType.text,
+              decoration: InputDecoration(
+                hintText: 'Ingrese su correo',
+                labelText: 'Email',
+                prefixIcon: Icon(Icons.email), // Cambia el ícono
+              ),
+              onChanged: (value) => loginForm.email = value,
+              validator: (value) {
+                return (value != null && value.length >= 4)
+                    ? null
+                    : 'El usuario no puede estar vacío';
+              },
             ),
-            onChanged: (value) => LoginForm.email = value,
-            validator: (value) {
-              return (value != null && value.length >= 4)
+            const SizedBox(height: 30),
+            TextFormField(
+              autocorrect: false,
+              obscureText: true,
+              keyboardType: TextInputType.text,
+              decoration: InputDecoration(
+                hintText: '************',
+                labelText: 'Contraseña',
+                prefixIcon: Icon(Icons.lock), // Cambia el ícono
+              ),
+              onChanged: (value) => loginForm.password = value,
+              validator: (value) {
+                return (value != null && value.length >= 4)
+                    ? null
+                    : 'La contraseña no puede estar vacía';
+              },
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: loginForm.isLoading
                   ? null
-                  : 'El usuario no puede estar vacio';
-            },
-          ),
-          const SizedBox(height: 30),
-          TextFormField(
-            autocorrect: false,
-            obscureText: true,
-            keyboardType: TextInputType.text,
-            decoration: InputDecortions.authInputDecoration(
-              hinText: '************',
-              labelText: 'Password',
-              prefixIcon: Icons.lock_outline,
-            ),
-            onChanged: (value) => LoginForm.password = value,
-            validator: (value) {
-              return (value != null && value.length >= 4)
-                  ? null
-                  : 'La contraseña no puede estar vacio';
-            },
-          ),
-          const SizedBox(height: 30),
-          MaterialButton(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            disabledColor: Colors.grey,
-            color: Color.fromARGB(255, 76, 61, 214),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 10),
-              child: Text(
-                'Registrar',
-                style: const TextStyle(color: Color.fromARGB(255, 216, 195, 195)),
+                  : () async {
+                      FocusScope.of(context).unfocus();
+                      final authService =
+                          Provider.of<AuthService>(context, listen: false);
+                      if (!loginForm.isValidForm()) return;
+                      loginForm.isLoading = true;
+                      final String? errorMessage = await authService.create_user(
+                          loginForm.email, loginForm.password);
+                      if (errorMessage == null) {
+                        Navigator.pushNamed(context, 'login');
+                      } else {
+                        print(errorMessage);
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple, // Cambia el color del botón
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 80, vertical: 10),
+                child: Text(
+                  'Registrar',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                  ),
+                ),
               ),
             ),
-            elevation: 0,
-            onPressed: LoginForm.isLoading
-                ? null
-                : () async {
-                    FocusScope.of(context).unfocus();
-                    final authService =
-                        Provider.of<AuthService>(context, listen: false);
-                    if (!LoginForm.isValidForm()) return;
-                    LoginForm.isLoading = true;
-                    final String? errorMessage = await authService.create_user(
-                        LoginForm.email, LoginForm.password);
-                    if (errorMessage == null) {
-                      Navigator.pushNamed(context, 'login');
-                    } else {
-                      print(errorMessage);
-                    }
-                  },
-          )
-        ]),
+          ],
+        ),
       ),
     );
   }

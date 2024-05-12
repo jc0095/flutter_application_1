@@ -98,4 +98,6 @@ class ProductService extends ChangeNotifier {
     Navigator.of(context).pushNamed('list');
     return '';
   }
+
+  void deleteCategory(categoryId) {}
 }
